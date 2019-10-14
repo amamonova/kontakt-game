@@ -107,7 +107,7 @@ if __name__ == '__main__':
     version = '20191001/'
     # recommended keras path: '/home/<username>/.keras/datasets/'
     # WARNING: LINUX OS PATH
-    keras_home = input("Input directory path, where you want to store dumped wiki-files")
+    keras_home = input("Input directory path, where you want to store dumped wiki-files\n")
     file_urls = get_file_urls(base_url, version, download_full=download_full)
     file_paths = download_files(file_urls, keras_home, base_url + version)
     pool = Pool(processes=4)
