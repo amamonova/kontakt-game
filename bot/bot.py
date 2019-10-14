@@ -2,8 +2,9 @@ from telegram.ext import Updater
 import logging
 from telegram.ext import CommandHandler
 from telegram.ext import MessageHandler, Filters
+from config import TOKEN_ID
 
-token = ''
+token = TOKEN_ID
 request_kwargs = {'proxy_url': 'https://192.53.40.221:8080'}
 
 updater = Updater(token, request_kwargs=request_kwargs, use_context=True)
