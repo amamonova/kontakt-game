@@ -27,6 +27,7 @@ def bytes_to_unicode(bytes):
 
 
 def validate_file(filename, is_full):
+    """We should only download files with pages-articles substing in name"""
     multistream = re.findall('multistream', filename)
     if is_full:
         article = re.findall('pages-articles', filename)
@@ -38,6 +39,7 @@ def validate_file(filename, is_full):
 
 
 def get_file_urls(base_url, version, download_full=False):
+    """Parse file urls from wiki dump page"""
     dump_url = base_url + version
 
     dump_html = requests.get(dump_url).text
@@ -53,6 +55,7 @@ def get_file_urls(base_url, version, download_full=False):
 
 
 def download_files(files, target_dir, url):
+    """Download files by URLS, function get_file use TensorFlow"""
     data_paths = []
     for file in files:
         path = target_dir + file
@@ -68,20 +71,27 @@ def parse_dumped_file(input_file, output_file, is_wikipedia):
     xml_parser = xml.sax.make_parser()
     xml_parser.setContentHandler(handler)
     writer = data_writer.DataWriter(output_file)
-    parser = wiki_code_parser.WikiCodeParser(is_wikipedia)
+    wiki_parser = wiki_code_parser.WikiCodeParser(is_wikipedia)
+    # bzcat = console utility, read .bz compressed file line by line
     for i, line in enumerate(subprocess.Popen(['bzcat'],
                                               stdin=open(input_file),
                                               stdout=subprocess.PIPE).stdout):
+        # Parse XML file line by line, return data to handler data[0] - page title, data[1] - page data
         xml_parser.feed(bytes_to_unicode(line))
 
+        # If handler gets signal, that xml_parser read new page:
         if handler.new_page:
+            # 1) Get this data
             data = handler.read_page()
             try:
-                parser.feed(data[0], data[1])
+                # 2) Load it to parser of wiki code
+                wiki_parser.feed(data[0], data[1])
             except IndexError:
                 continue
-            data = parser.get_data()
-            parser.clear()
+            # 3) Get data from wiki code parser
+            data = wiki_parser.get_data()
+            wiki_parser.clear()
+            # 4) Write it to csv file
             writer.write(data, is_wikipedia)
 
 
@@ -106,9 +116,10 @@ if __name__ == '__main__':
     keras_home = input("Input directory path, where you want to store dumped wiki-files\n")
     file_urls = get_file_urls(base_url, version, download_full=download_full)
     file_paths = download_files(file_urls, keras_home, base_url + version)
+    # Creating 4 processes, If you have other amount of CPUCores, you can change this
     pool = Pool(processes=4)
     task_args = [(file, file_csv_name + str(i) + '.csv', is_wiki) for i, file in enumerate(file_paths)]
-
+    # Every process will run parse_dumped_file function
     results = pool.starmap(parse_dumped_file, task_args)
 
     pool.close()

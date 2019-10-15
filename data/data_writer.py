@@ -1,6 +1,7 @@
 import csv
 import pandas
 
+
 class DataWriter:
     def __init__(self, file_path):
         self._file_open = False
@@ -10,7 +11,7 @@ class DataWriter:
 
     def _open_file(self):
         self._file_open = True
-        self._file = open(self._path, 'w+') # TODO w+?, exceptions!
+        self._file = open(self._path, 'w+')  # TODO w+?, exceptions!
         self._writer = csv.writer(self._file, delimiter='\\')
 
     def write(self, data, is_wikipedia):
