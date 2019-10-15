@@ -63,15 +63,12 @@ def download_files(files, target_dir, url):
     return data_paths
 
 
-def parse_dumped_file(input_file, output_file, is_wikipedia=True):
-    lines = []
-    start = timer()
+def parse_dumped_file(input_file, output_file, is_wikipedia):
     handler = wiki_xml_handler.WikiXmlHandler()
     xml_parser = xml.sax.make_parser()
     xml_parser.setContentHandler(handler)
     writer = data_writer.DataWriter(output_file)
     parser = wiki_code_parser.WikiCodeParser(is_wikipedia)
-    counter = 0
     for i, line in enumerate(subprocess.Popen(['bzcat'],
                                               stdin=open(input_file),
                                               stdout=subprocess.PIPE).stdout):
@@ -86,7 +83,6 @@ def parse_dumped_file(input_file, output_file, is_wikipedia=True):
             data = parser.get_data()
             parser.clear()
             writer.write(data, is_wikipedia)
-    end = timer()
 
 
 if __name__ == '__main__':
@@ -111,7 +107,7 @@ if __name__ == '__main__':
     file_urls = get_file_urls(base_url, version, download_full=download_full)
     file_paths = download_files(file_urls, keras_home, base_url + version)
     pool = Pool(processes=4)
-    task_args = [(file, file_csv_name + str(i) + '.csv', True) for i, file in enumerate(file_paths)]
+    task_args = [(file, file_csv_name + str(i) + '.csv', is_wiki) for i, file in enumerate(file_paths)]
 
     results = pool.starmap(parse_dumped_file, task_args)
 
