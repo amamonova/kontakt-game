@@ -33,3 +33,6 @@ feel free to contact us. Or just change the
 ## Output
 
 The script has logging, so it returns logs to standard output. 
+Also, there will be created the file `database.csv` with data 
+from chats: "chat id", "message from user", 
+"answer from bot" columns.
