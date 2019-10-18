@@ -22,10 +22,13 @@ greeting.
 `python3.6 bot.py`
 3. Test your bot.
 
-JFYI: Telegram is prohibited in Russia, so we use proxy. It is
-unstable: if you have some troubles with connection, please, 
+JFYI: Telegram is prohibited in Russia, so we use proxy 
+(address is requested from PubProxy API). 
+It is unstable: 
+if you have some troubles with connection, please, 
 feel free to contact us. Or just change the 
-`proxy_url` parameter in `config.py`
+`proxy_url` parameter in `config.py` --> 
+`DEFAULT_REQUEST_KWARGS` dict. 
 
 ## Output
 
