@@ -70,8 +70,17 @@ def test_validate_title():
 
 
 def test_validate_text():
-    assert not wp.validate_title("This is #REDIRECT page")
-    assert wp.validate_title("Страница про Слона")
+    assert not wp.validate_text("This is #REDIRECT page")
+    assert wp.validate_text("Страница про Слона")
+
+
+def test_chunks():
+    gen_1 = wp.chunks([1, 2, 3, 4], 2)
+    list_1 = [[1, 2], [3, 4]]
+    assert all(a == b for a, b in zip(gen_1, list_1))
+    gen_2 = wp.chunks([1, 2, 3, 4, 5], 2)
+    list_2 = [[1, 2], [3, 4], [5]]
+    assert all(a == b for a, b in zip(gen_2, list_2))
 
 
 if __name__ == "__main__":

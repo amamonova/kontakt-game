@@ -3,23 +3,31 @@ import re
 import gensim as gensim
 import mwparserfromhell
 
+PHRASEME_SEP = '[*#]'
+
+RELATION_SEP = '[*#,]'
+
+re_quotation = re.compile('[\'\"]')
+re_html_tags = re.compile('<.*?>')
+re_validate_text = re.compile('#REDIRECT')
+re_template_wiki = re.compile('{{выдел|}}')
+re_wiki_separator = re.compile('\|')
+re_wiki_braces = re.compile('[{}]')
+
 
 def _clean_text_from_quotation(text):
-    clean = re.compile('[\'\"]')
-    return re.sub(clean, '', text)
+    return re_quotation.sub('', text)
 
 
 # TODO: Add to utils
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
-    for i in range(0, len(l), n):
-        yield l[i:i + n]
+    return (l[i:i + n] for i in range(0, len(l), n))
 
 
 def _remove_html_tags(text):
     """Remove html tags from a string"""
-    clean = re.compile('<.*?>')
-    return re.sub(clean, '', text)
+    return re_html_tags.sub('', text)
 
 
 def _trim_string(string):
@@ -82,10 +90,10 @@ def clean_meanings(text):
                     example = mwparserfromhell.parse(example).strip_code()
 
                     # Remove {{выдел|word}} pattern
-                    example = re.sub('{{выдел|}}', ' ', example)
-                    example = re.sub('\|', '', example)
 
-                    example = re.sub('[{}]', '', example)
+                    example = re_template_wiki.sub(' ', example)
+                    example = re_wiki_separator.sub('', example)
+                    example = re_wiki_braces.sub('', example)
 
                     example = clean_string(example)
 
@@ -99,15 +107,11 @@ def clean_meanings(text):
 def validate_title(title):
     if re.findall(':', title):
         return False
-    if re.match('^[ а-яА-Я]', title):
-        return True
-    return False
+    return re.match('^[ а-яА-Я]', title)
 
 
 def validate_text(text):
-    if re.match("#REDIRECT", text):
-        return False
-    return True
+    return re_validate_text.findall(text) == []
 
 
 class WiktionaryParser:
@@ -121,6 +125,12 @@ class WiktionaryParser:
         }
         self._meanings = []
         self._phraseme = []
+        self.re_relations_dict = {
+            'synonyms': re.compile('синонимы'),
+            'antonyms': re.compile('антонимы'),
+            'hypernyms': re.compile('гиперонимы'),
+            'hyponyms': re.compile('гипонимы')
+        }
 
     def parse(self, text):
         splited_text = text.split('===')
@@ -136,21 +146,12 @@ class WiktionaryParser:
             lower_text = text.lower()
             if not self._meanings and re.search('значение', lower_title):
                 self._meanings = clean_meanings(text)
-            if not self._relations['synonyms'] and re.search('синонимы', lower_title):
-                text = re.sub('частичн.:', '', lower_text)  # Remove additional tag from relations
-                self._relations['synonyms'] = clean_wikilist(text, separator='[*#,]')
-            if not self._relations['antonyms'] and re.search('антонимы', lower_title):
-                text = re.sub('частичн.:', '', lower_text)
-                self._relations['antonyms'] = clean_wikilist(text, separator='[*#,]')
-            if not self._relations['hypernyms'] and re.search('гиперонимы', lower_title):
-                text = re.sub('частичн.:', '', lower_text)
-                self._relations['hypernyms'] = clean_wikilist(text, separator='[*#,]')
-            if not self._relations['hyponyms'] and re.search('гипонимы', lower_title):
-                text = re.sub('частичн.:', '', lower_text)
-                self._relations['hyponyms'] = clean_wikilist(text, separator='[*#,]')
+            for relation, pattern in self.re_relations_dict.items():
+                if not self._relations[relation] and pattern.search(lower_title):
+                    self._relations[relation] = clean_wikilist(text, separator=RELATION_SEP)
             if not self._phraseme and re.search('фразеологизмы', lower_title):
                 text = re.sub('частичн', '', lower_text)
-                self._phraseme = clean_wikilist(text, separator='[*#]')
+                self._phraseme = clean_wikilist(text, separator=PHRASEME_SEP)
             if not self._part_of_speech and re.search('морфологические и синтаксические свойства', lower_title):
                 if re.search('сущ', lower_text):
                     self._part_of_speech = 'noun'

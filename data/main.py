@@ -1,25 +1,26 @@
 import xml
-import csv
-import requests
-from bs4 import BeautifulSoup
 import os
-import sys
-import bz2
+import requests
 import subprocess
-from keras.utils import get_file
 import re
+
+from bs4 import BeautifulSoup
+from keras.utils import get_file
+from multiprocessing import Pool
+
 import wiki_xml_handler
 import wiki_code_parser
 import data_writer
-from timeit import default_timer as timer
-from multiprocessing import Pool
-import tqdm
 
 # List of lists to single list
 from itertools import chain
 
 # Sending keyword arguments in map
 from functools import partial
+
+multistream_reg = re.compile('multistream')
+pages_full_reg = re.compile('pages-articles')
+pages_reg = re.compile('pages-articles[1-9]')
 
 
 def bytes_to_unicode(bytes):
@@ -28,11 +29,9 @@ def bytes_to_unicode(bytes):
 
 def validate_file(filename, is_full):
     """We should only download files with pages-articles substing in name"""
-    multistream = re.findall('multistream', filename)
-    if is_full:
-        article = re.findall('pages-articles', filename)
-    else:
-        article = re.findall('pages-articles[1-9]', filename)
+    multistream = multistream_reg.findall(filename)
+    article_pattern = pages_full_reg if is_full else pages_reg
+    article = article_pattern.findall(filename)
     if not multistream and article:
         return True
     return False
@@ -98,18 +97,12 @@ def parse_dumped_file(input_file, output_file, is_wikipedia):
 if __name__ == '__main__':
     print("Do you want to download wikipedia-(1) or wiktionaty-(2)? (1/2)")
     x = int(input())
-    if x == 1:
-        # wiki
-        base_url = 'https://dumps.wikimedia.org/ruwiki/'
-        download_full = False
-        is_wiki = True
-        file_csv_name = 'wikipedia_data'
-    else:
-        # wikt
-        base_url = 'https://dumps.wikimedia.org/ruwiktionary/'
-        download_full = True
-        is_wiki = False
-        file_csv_name = 'wiktionary_data'
+
+    base_url = 'https://dumps.wikimedia.org/ruwiki/' if x == 1 else 'https://dumps.wikimedia.org/ruwiktionary/'
+    download_full = x != 1
+    is_wiki = x == 1
+    file_csv_name = 'wikipedia_data' if x == 1 else 'wiktionary_data'
+
     version = '20191001/'
     # recommended keras path: '/home/<username>/.keras/datasets/'
     # WARNING: LINUX OS PATH
