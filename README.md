@@ -14,10 +14,11 @@ There is a project of CSC - Kontakt Game.
 Скрипт сохраняет в директории запуска несколько файлов 'wikipedia_data{i}.csv',
 которые содержат csv таблицы обработанных данных. Во всех файлах разделителем является \\  (backslash)
 #### Формат данных
-##### Wikipedia
+##### Wikipedia csv file
 1) Заголовок
 2) Текст статьи
-##### Wiktionary
+##### Wiktionary json file
+Пример использования файла: https://colab.research.google.com/drive/1hheCmPLU7i6ybMFMkrDMb05fN-OmKmw1#scrollTo=Liy3OsQ4yHUI&line=3&uniqifier=1
 1) Заголовок
 2) Часть речи (пока noun/other)
 3) Значение и примеры в формате [(meaning, [examples]), ...]
