@@ -18,7 +18,7 @@ There is a project of CSC - Kontakt Game.
 1) Заголовок
 2) Текст статьи
 ##### Wiktionary json file
-Пример использования файла: https://colab.research.google.com/drive/1hheCmPLU7i6ybMFMkrDMb05fN-OmKmw1#scrollTo=Liy3OsQ4yHUI&line=3&uniqifier=1
+Пример использования файла: https://colab.research.google.com/drive/1hheCmPLU7i6ybMFMkrDMb05fN-OmKmw1
 1) Заголовок
 2) Часть речи (пока noun/other)
 3) Значение и примеры в формате [(meaning, [examples]), ...]
