@@ -36,8 +36,8 @@ class Bot:
         start_handler = CommandHandler('start', self.start_command)
         dispatcher.add_handler(start_handler)
 
-        dispatcher.add_handler(CommandHandler("help", self.help_command))
-        dispatcher.add_handler(CommandHandler("rules", self.rules_command))
+        dispatcher.add_handler(CommandHandler('help', self.help_command))
+        dispatcher.add_handler(CommandHandler('rules', self.rules_command))
 
         conv_handler = ConversationHandler(
             entry_points=[CommandHandler('play', self.play_command)],
@@ -52,14 +52,14 @@ class Bot:
         updater.start_polling()
 
     def computer_makes_word(self):
-        self.source_word = "арбуз"
+        self.source_word = 'арбуз'
         self.prefix_size = 1
 
     def calculate_answer(self, description):
         """
         ML calculate word from description
         """
-        return "апельсин"
+        return 'апельсин'
 
     def start_command(self, update, context):
         context.bot.send_message(chat_id=update.effective_chat.id,
@@ -88,7 +88,7 @@ class Bot:
         update.message.reply_text(RULES)
 
     def play_command(self, update, context):
-        update.message.reply_text("Вы готовы начать игру?(y/n)")
+        update.message.reply_text('Вы готовы начать игру?(y/n)')
         self.computer_makes_word()
         self.game_started = False
         return PREFIX
@@ -120,7 +120,7 @@ class Bot:
     def riddle_state_handler(self, update, context):
         description = update.message.text
         answer = self.calculate_answer(description)
-        update.message.reply_text(f'Вы загадали {answer}? (y/n)')
+        update.message.reply_text(f"Вы загадали {answer}? (y/n)")
         return PREFIX
 
     def cancel_command(self, update, context):
