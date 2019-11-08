@@ -3,10 +3,12 @@ import os
 import requests
 import subprocess
 import re
+import tensorflow
 
 from bs4 import BeautifulSoup
 from keras.utils import get_file
 from multiprocessing import Pool
+
 
 import wiki_xml_handler
 import wiki_code_parser
@@ -58,10 +60,9 @@ def download_files(files, target_dir, url):
     data_paths = []
     for file in files:
         path = target_dir + file
-        if not os.path.exists(path):
-            data_paths.append(get_file(file, url + file))  # TODO: Add Exceptions
-        else:
-            data_paths.append(path)
+        data_path = get_file(file, url + file) if not os.path.exists(path) else path
+        data_paths.append(path)
+    print('All files downloaded')
     return data_paths
 
 
@@ -72,6 +73,7 @@ def parse_dumped_file(input_file, output_file, is_wikipedia):
     writer = data_writer.DataWriter(output_file)
     wiki_parser = wiki_code_parser.WikiCodeParser(is_wikipedia)
     # bzcat = console utility, read .bz compressed file line by line
+    count = 0
     for i, line in enumerate(subprocess.Popen(['bzcat'],
                                               stdin=open(input_file),
                                               stdout=subprocess.PIPE).stdout):
@@ -80,6 +82,9 @@ def parse_dumped_file(input_file, output_file, is_wikipedia):
 
         # If handler gets signal, that xml_parser read new page:
         if handler.new_page:
+            count += 1
+            if count % 1000 == 0:
+                print(f'{count // 1000} th pages processed')
             # 1) Get this data
             data = handler.read_page()
             try:
@@ -96,15 +101,17 @@ def parse_dumped_file(input_file, output_file, is_wikipedia):
 
 if __name__ == '__main__':
     print("Do you want to download wikipedia-(1) or wiktionaty-(2)? (1/2)")
-    x = int(input())
+    state = int(input())
+    WIKI = 1
 
-    base_url = 'https://dumps.wikimedia.org/ruwiki/' if x == 1 else 'https://dumps.wikimedia.org/ruwiktionary/'
-    download_full = x != 1
-    is_wiki = x == 1
-    file_csv_name = 'wikipedia_data' if x == 1 else 'wiktionary_data'
+    url_tail = 'ruwiki' if state == WIKI else 'ruwiktionary'
+    base_url = f'https://dumps.wikimedia.org/{url_tail}/'
+    download_full = state != WIKI
+    is_wiki = state == WIKI
+    file_csv_name = 'wikipedia_data' if state == WIKI else 'wiktionary_data'
 
     version = '20191001/'
-    # recommended keras path: '/home/<username>/.keras/datasets/'
+    # recommended keras path: '/home/sp/.keras/datasets/'
     # WARNING: LINUX OS PATH
     keras_home = input("Input directory path, where you want to store dumped wiki-files\n")
     file_urls = get_file_urls(base_url, version, download_full=download_full)
