@@ -187,20 +187,28 @@ class Bot:
 
         dp.add_handler(CommandHandler('start', self.start_command))
 
-        conv_handler = ConversationHandler(
-            entry_points=[CommandHandler('play', self.play)],
-            states={
-                PLAY: [
-                    MessageHandler(Filters.text, self.user_word),
-                    CallbackQueryHandler(self.init_play, pattern='^' + 'PLAY:Y' + '$'),
-                    CallbackQueryHandler(self.play_decline, pattern='^' + 'PLAY:N' + '$'),
-                    CallbackQueryHandler(self.correct_answer, pattern='^' + 'ANSWER:Y' + '$'),
-                    CallbackQueryHandler(self.wrong_answer, pattern='^' + 'ANSWER:N' + '$')]
-            },
-            fallbacks=[CommandHandler('cancel', self.cancel_command)]
-        )
+        dp.add_handler(CallbackQueryHandler(self.init_play, pattern='^' + 'PLAY:Y' + '$'))
+        dp.add_handler(CallbackQueryHandler(self.play_decline, pattern='^' + 'PLAY:N' + '$'))
+        dp.add_handler(CallbackQueryHandler(self.wrong_answer, pattern='^' + 'ANSWER:N' + '$'))
+        dp.add_handler(CallbackQueryHandler(self.correct_answer, pattern='^' + 'ANSWER:Y' + '$'))
+        dp.add_handler(MessageHandler(Filters.text, self.user_word))
+        dp.add_handler(CommandHandler('play', self.play))
+        dp.add_handler(CommandHandler('cancel', self.cancel_command))
 
-        dp.add_handler(conv_handler)
+        # conv_handler = ConversationHandler(
+        #     entry_points=[CommandHandler('play', self.play)],
+        #     states={
+        #         PLAY: [
+        #             MessageHandler(Filters.text, self.user_word),
+        #             CallbackQueryHandler(self.init_play, pattern='^' + 'PLAY:Y' + '$'),
+        #             CallbackQueryHandler(self.play_decline, pattern='^' + 'PLAY:N' + '$'),
+        #             CallbackQueryHandler(self.correct_answer, pattern='^' + 'ANSWER:Y' + '$'),
+        #             CallbackQueryHandler(self.wrong_answer, pattern='^' + 'ANSWER:N' + '$')]
+        #     },
+        #     fallbacks=[CommandHandler('cancel', self.cancel_command)]
+        # )
+        # dp.add_handler(conv_handler)
+
         dp.add_handler(CommandHandler('help', self.help_command))
         dp.add_handler(CommandHandler('rules', self.rules_command))
 
