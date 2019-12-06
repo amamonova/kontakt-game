@@ -18,8 +18,8 @@ PLAY, WAIT = range(2)
 
 class Bot:
     def __init__(self):
-        self.prefix_size = 0
-        self.source_word = ""
+        self.source_word = {}
+        self.prefix = {}
         self.game_started = False
         self.win_previous = False
         self.input_expected = False
@@ -30,19 +30,21 @@ class Bot:
         self.model.close()
 
     # TODO:
-    def computer_makes_word(self):
-        self.source_word = 'арбуз'
-        self.prefix_size = 1
+    def computer_makes_word(self, user):
+        try:
+            self.source_word[user] = 'арбуз'
+            self.prefix[user] = 'а'
+        except KeyError:
+            logger.warning(f"USER NOT FOUND {user.first_name}")
 
     # TODO:
-    def calculate_answer(self, description):
+    def calculate_answer(self, description, user):
         """
         ML calculate word from description
         """
-
         logger.info("Get descr from user: " , description)
-        m_answer = self.model.predict_word(description, self.source_word[:self.prefix_size])
-        if m_answer == []:
+        m_answer = self.model.predict_word(description, self.prefix[user])
+        if not m_answer:
             return 'У меня нет ответа!'
         else:
             return m_answer[0][0]
@@ -79,10 +81,10 @@ class Bot:
 
     def init_play(self, update, context):
         query = update.callback_query
-        self.computer_makes_word()
-        prefix = self.source_word[:self.prefix_size]
-        query.edit_message_text(text=f"Загаданной мной слово начинается на \'{prefix}\'" + '\n'
-                                     + f"Загадайте свое слово на \'{prefix}\' и опишите его")
+        user = update.effective_user
+        self.computer_makes_word(user)
+        query.edit_message_text(text=f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n'
+                                     + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его")
         self.input_expected = True
         return PLAY
 
@@ -90,7 +92,7 @@ class Bot:
         """Send message on `/play`."""
 
         # Get user that sent /play and log his name
-        user = update.message.from_user
+        user = update.effective_user
         logger.info("User %s started the conversation.", user.first_name)
 
         # Build InlineKeyboard where each button has a displayed text
@@ -124,7 +126,8 @@ class Bot:
 
     def user_word(self, update, context):
         description = update.message.text
-        self.answer = self.calculate_answer(description)
+        user = update.effective_user
+        self.answer = self.calculate_answer(description, user)
         keyboard = [
             [InlineKeyboardButton("Да", callback_data='ANSWER:Y'),
              InlineKeyboardButton("Нет", callback_data='ANSWER:N')]
@@ -142,13 +145,13 @@ class Bot:
     def wrong_answer(self, update, context):
         query = update.callback_query
         bot = context.bot
-        self.prefix_size += 1
-        prefix = self.source_word[:self.prefix_size]
-        if prefix == self.source_word:
+        user = update.effective_user
+        self.prefix[user] = self.prefix[user] + self.source_word[user][len(self.prefix[user])]
+        if self.prefix[user] == self.source_word[user]:
             bot.edit_message_text(
                 chat_id=query.message.chat_id,
                 message_id=query.message.message_id,
-                text=f"Раскрываю слово полностью:{self.source_word}\n" +
+                text=f"Раскрываю слово полностью:{self.source_word[user]}\n" +
                      "Вы победили!"
             )
             return ConversationHandler.END
@@ -156,8 +159,8 @@ class Bot:
             chat_id=query.message.chat_id,
             message_id=query.message.message_id,
             text="Эх.. Раскрываю еще одну букву\n" +
-                 f"Загаданной мной слово начинается на \'{prefix}\'" + '\n'
-                 + f"Загадайте свое слово на \'{prefix}\' и опишите его"
+                 f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n'
+                 + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его"
         )
         self.input_expected = True
         return PLAY
@@ -165,21 +168,20 @@ class Bot:
     def correct_answer(self, update, context):
         query = update.callback_query
         bot = context.bot
-        if self.answer == self.source_word:
+        user = update.effective_user
+        if self.answer == self.source_word[user]:
             bot.edit_message_text(
                 chat_id=query.message.chat_id,
                 message_id=query.message.message_id,
                 text="Вы угадали мое слово!"
             )
             return ConversationHandler.END
-
-        prefix = self.source_word[:self.prefix_size]
         bot.edit_message_text(
             chat_id=query.message.chat_id,
             message_id=query.message.message_id,
             text="Отлично! Я угадал, играем дальше\n" +
-                 f"Загаданной мной слово начинается на \'{prefix}\'" + '\n'
-                 + f"Загадайте свое слово на \'{prefix}\' и опишите его"
+                 f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n'
+                 + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его"
         )
         self.input_expected = True
         return PLAY
