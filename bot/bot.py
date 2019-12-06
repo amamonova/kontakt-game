@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
-
+from script import KontaktModel
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler, MessageHandler, Filters
 import logging
@@ -24,6 +24,10 @@ class Bot:
         self.win_previous = False
         self.input_expected = False
         self.answer = ""
+        self.model = KontaktModel()
+
+    def close(self):
+        self.model.close()
 
     # TODO:
     def computer_makes_word(self):
@@ -35,7 +39,13 @@ class Bot:
         """
         ML calculate word from description
         """
-        return 'апельсин'
+
+        logger.info("Get descr from user: " , description)
+        m_answer = self.model.predict_word(description, self.source_word[:self.prefix_size])
+        if m_answer == []:
+            return 'У меня нет ответа!'
+        else:
+            return m_answer[0][0]
 
     def start_command(self, update, context):
         GREETINGS_TEXT = """Привет! Я бот из CSC. Давай сыграем в игру контакт! (/play чтобы начать)"""
@@ -53,9 +63,9 @@ class Bot:
            (1) Компьютер загадывает некоторое слово А. Глобальная цель игры угадать слово!
            (2) Компьютер раскрывает первую, ранее не раскрытую букву слова A.
            (3) Пользователь загадывает слово B, которое обязано начинатся на ранее раскрытый перфикс слова A.
-           (4) Пользователь посылает компьютеру некое объяснение слова B, не использующее однокоренных c B слов. 
+           (4) Пользователь посылает компьютеру некое объяснение слова B, не использующее однокоренных c B слов.
            (5) Компьютер пытается угадать слово B по объяснению
-           (6) Если компьютер справился, т.е он угадал слово B, есть 2 варианта: 
+           (6) Если компьютер справился, т.е он угадал слово B, есть 2 варианта:
                - A = B, тогда пользователь победил
                - A \\= B, тогда игра возвращается на шаг (3)
            (7) Если компьютер не справился, т.е вывел слово отличное от B, игра переходит на шаг (2)
@@ -210,6 +220,8 @@ class Bot:
 
         updater.idle()
 
+    def __del__(self):
+        self.close()
 
 if __name__ == '__main__':
     bot = Bot()
