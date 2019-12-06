@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
+import re
+
 from script import KontaktModel
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler, MessageHandler, Filters
@@ -18,6 +20,45 @@ PLAY, WAIT = range(2)
 
 class Bot:
     def __init__(self):
+        self.command_tags = ['HELLO', 'RULES', 'STOP', 'PLAY', 'HELP']
+        self.tag_to_func = {
+            'HELLO': self.start_command,
+            'RULES': self.rules_command,
+            'STOP': self.cancel_command,
+            'PLAY': self.play,
+            'HELP': self.help_command
+        }
+        self.rules_words = [
+            "правила"
+        ]
+        self.help_words = [
+            "помощь"
+        ]
+        self.stop_words = [
+            "стой",
+            "стоп",
+            "остановись",
+            "отмена",
+            "отстань",
+            "надоело"
+        ]
+        self.play_words = [
+            "играть",
+            "начинай",
+            "запускай",
+            "пошли"
+        ]
+        self.hello_words = [
+            "привет",
+            "здравствуй"
+        ]
+        self.tag_to_list = {
+            'HELLO': self.hello_words,
+            'RULES': self.rules_words,
+            'STOP': self.stop_words,
+            'PLAY': self.play_words,
+            'HELP': self.help_words
+        }
         self.source_word = {}
         self.prefix = {}
         self.game_started = False
@@ -42,7 +83,7 @@ class Bot:
         """
         ML calculate word from description
         """
-        logger.info("Get descr from user: " , description)
+        logger.info(f"Get descr from user: {description}", None)
         m_answer = self.model.predict_word(description, self.prefix[user])
         if not m_answer:
             return 'У меня нет ответа!'
@@ -132,7 +173,7 @@ class Bot:
             [InlineKeyboardButton("Да", callback_data='ANSWER:Y'),
              InlineKeyboardButton("Нет", callback_data='ANSWER:N')]
         ]
-        bot_reply = f"Вы загадали слово: {self.answer}?" if self.input_expected else ""
+        bot_reply = f"Вы загадали слово: {self.answer}?"
         reply_markup = InlineKeyboardMarkup(keyboard)
         # Send message with text and appended InlineKeyboard
         update.message.reply_text(
@@ -141,6 +182,43 @@ class Bot:
         )
         self.input_expected = False
         return PLAY
+
+    def handle_message(self, update, context):
+        if self.input_expected:
+            self.user_word(update, context)
+        else:
+            msg = update.message.text
+            msg = re.sub(r'[^\w\s]', '', msg)
+            for word in msg.split(' '):
+                for tag in self.command_tags:
+                    if word in self.tag_to_list[tag]:
+                        self.tag_to_func[tag](update, context)
+                        return
+            """
+            LONG PROCESSED PART, DEPRICATED
+            words = self.tprocess.process_text(msg)
+            words = list(filter(lambda x: (re.findall(r'_VERB', x) != []) or
+                                          (re.findall(r'_NOUN', x) != []),
+                                words))
+            words = [re.sub(r'_.*$', '', x) for x in words]
+            logger.info(f"Given msg: {msg}")
+            logger.info(words)
+
+            processed_stats = {k: 0 for k in self.command_tags}
+            for tag, tag_words in self.tag_to_list.items():
+                cartesian = itertools.product(tag_words, words)
+                processed_stats[tag] = max(list(map(lambda x: self.api_similarity(x[0], x[1]), cartesian)))
+            logger.info(processed_stats)
+            max_tag = ""
+            max_val = -1
+            for k, v in processed_stats.items():
+                if max_val < float(v):
+                    max_val = float(v)
+                    max_tag = k
+            if max_val > 0.6:
+                self.tag_to_func[max_tag](update, context)
+                return
+            """
 
     def wrong_answer(self, update, context):
         query = update.callback_query
@@ -193,6 +271,7 @@ class Bot:
 
     def main(self):
         # YOU SHOULD HAVE TOKEN IN YOUR ENV VARIABLES
+
         updater = Updater(os.getenv('TOKEN'), use_context=True)
 
         dp = updater.dispatcher
@@ -203,7 +282,7 @@ class Bot:
         dp.add_handler(CallbackQueryHandler(self.play_decline, pattern='^' + 'PLAY:N' + '$'))
         dp.add_handler(CallbackQueryHandler(self.wrong_answer, pattern='^' + 'ANSWER:N' + '$'))
         dp.add_handler(CallbackQueryHandler(self.correct_answer, pattern='^' + 'ANSWER:Y' + '$'))
-        dp.add_handler(MessageHandler(Filters.text, self.user_word))
+        dp.add_handler(MessageHandler(Filters.text, self.handle_message))
         dp.add_handler(CommandHandler('play', self.play))
         dp.add_handler(CommandHandler('cancel', self.cancel_command))
 
@@ -232,6 +311,7 @@ class Bot:
 
     def __del__(self):
         self.close()
+
 
 if __name__ == '__main__':
     bot = Bot()
