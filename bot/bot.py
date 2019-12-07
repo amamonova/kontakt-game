@@ -63,7 +63,7 @@ class Bot:
         self.prefix = {}
         self.game_started = False
         self.win_previous = False
-        self.input_expected = False
+        self.input_expected = {}
         self.answer = ""
         self.model = KontaktModel()
 
@@ -83,12 +83,8 @@ class Bot:
         """
         ML calculate word from description
         """
-        logger.info(f"Get descr from user: {description}, to prefifx {self.prefix[user]}", None)
-        m_answer = self.model.predict_word(description, self.prefix[user])
-        if not m_answer:
-            return 'У меня нет ответа!'
-        else:
-            return m_answer[0][0]
+        logger.info(f"Get descr from user: {description}, to prefifx {self.prefix[user]}")
+        return self.model.predict_word(description, self.prefix[user])
 
     def start_command(self, update, context):
         GREETINGS_TEXT = """Привет! Я бот из CSC. Давай сыграем в игру контакт! (/play чтобы начать)"""
@@ -126,7 +122,7 @@ class Bot:
         self.computer_makes_word(user)
         query.edit_message_text(text=f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n'
                                      + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его")
-        self.input_expected = True
+        self.input_expected[user] = True
         return PLAY
 
     def play(self, update, context):
@@ -169,6 +165,10 @@ class Bot:
         description = update.message.text
         user = update.effective_user
         self.answer = self.calculate_answer(description, user)
+        if self.answer == "":
+            update.message.reply_text("У меня нет ответа(")
+            self.wrong_answer(update, context)
+            return PLAY
         keyboard = [
             [InlineKeyboardButton("Да", callback_data='ANSWER:Y'),
              InlineKeyboardButton("Нет", callback_data='ANSWER:N')]
@@ -180,11 +180,12 @@ class Bot:
             bot_reply,
             reply_markup=reply_markup
         )
-        self.input_expected = False
+        self.input_expected[user] = False
         return PLAY
 
     def handle_message(self, update, context):
-        if self.input_expected:
+        user = update.effective_user
+        if self.input_expected[user]:
             self.user_word(update, context)
         else:
             msg = update.message.text
@@ -240,7 +241,7 @@ class Bot:
                  f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n'
                  + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его"
         )
-        self.input_expected = True
+        self.input_expected[user] = True
         return PLAY
 
     def correct_answer(self, update, context):
@@ -261,11 +262,12 @@ class Bot:
                  f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n'
                  + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его"
         )
-        self.input_expected = True
+        self.input_expected[user] = True
         return PLAY
 
     def cancel_command(self, update, context):
-        self.input_expected = False
+        user = update.effective_user
+        self.input_expected[user] = False
         update.message.reply_text("Пока!")
         return ConversationHandler.END
 
