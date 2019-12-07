@@ -107,11 +107,13 @@ def clean_meanings(text):
 def validate_title(title):
     if re.findall(':', title):
         return False
-    return re.match('^[ а-яА-Я]', title)
+    return re.match(r"[а-яА-ЯёЁ\s]+", title)
 
 
 def validate_text(text):
-    return re_validate_text.findall(text) == []
+    not_redirect = re_validate_text.findall(text) == []
+    rus_page = re.findall('{{-ru-}}', text) != []
+    return not_redirect and rus_page
 
 
 class WiktionaryParser:
@@ -196,9 +198,10 @@ class WikiCodeParser:
         self._page_data = {}
 
     def feed(self, title, text):
-        self._title = title
+        self.clear()
         if not validate_title(title) or not validate_text(text):
             return
+        self._title = title
         self._text = text
         if self._is_wiki:
             wiki_pedia_parser = WikiPediaParser()
