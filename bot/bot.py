@@ -73,8 +73,9 @@ class Bot:
     # TODO:
     def computer_makes_word(self, user):
         try:
-            self.source_word[user] = 'арбуз'
-            self.prefix[user] = 'а'
+            self.source_word[user] = self.model.get_random_word()
+            self.prefix[user] = self.source_word[user][0]
+            logger.info(f"Computer choose word:{self.source_word[user]} for user {user.first_name}")
         except KeyError:
             logger.warning(f"USER NOT FOUND {user.first_name}")
 

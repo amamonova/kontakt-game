@@ -219,6 +219,7 @@ class KontaktModel:
         return output
 
     def predict_word(self, text, prefix='а'):
+        # TODO: ADD TEXT LEMMATIZATION
         words = text.split(' ')
         prefix_titles = self.titles[self.titles['title'].str.startswith(prefix)]
         if prefix_titles.empty:
@@ -236,6 +237,9 @@ class KontaktModel:
         #     lambda x: re.findall('_NOUN', self.process_text(x[0])[0]) != [],
         #                       top_100))
         # return top_100
+
+    def get_random_word(self):
+        return self.titles[self.titles.POS == 'noun']['titles'].sample(1).value[0]
 
     def close(self):
         del self.model
