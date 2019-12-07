@@ -9,7 +9,31 @@ import pandas as pd
 import numpy as np
 import random
 
-class KontaktModel:
+"""
+RUSVECTORS CLASS 
+http://rusvectores.org/
+"""
+
+
+class TextProcessor:
+    def __init__(self):
+        # URL of the UDPipe model
+        udpipe_model_url = 'https://rusvectores.org/static/models/udpipe_syntagrus.model'
+        udpipe_filename = udpipe_model_url.split('/')[-1]
+
+        if not os.path.isfile(udpipe_filename):
+            print('UDPipe model not found. Downloading...', file=sys.stderr)
+            wget.download(udpipe_model_url)
+
+        self.ud_model = Model.load(udpipe_filename)
+
+    def process_text(self, text):
+        res = self.unify_sym(text.strip())
+        output = self.process(
+            Pipeline(self.ud_model, 'tokenize', Pipeline.DEFAULT, Pipeline.DEFAULT, 'conllu'),
+            text=res)
+        return output
+
     def num_replace(self, word):
         newtoken = 'x' * len(word)
         return newtoken
@@ -182,6 +206,8 @@ class KontaktModel:
             tagged_propn = [word.split('_')[0] for word in tagged_propn]
         return tagged_propn
 
+
+class KontaktModel:
     def process_wiki_data(self):
         def get_only_meanings(list_means_exmpls):
             return [mean[0] for mean in list_means_exmpls if len(mean[0])]
@@ -199,24 +225,13 @@ class KontaktModel:
         # self.process_wiki_data()
         self.titles = self.wiki_data[['title', 'POS']]
 
+        self.word_freq = pd.read_csv('word_freq.csv')
+
+        self.nouns = self.filter_tites_by_freq()
+
         self.model = gensim.models.KeyedVectors.load('araneum_none_fasttextcbow_300_5_2018.model')
 
-        # URL of the UDPipe model
-        udpipe_model_url = 'https://rusvectores.org/static/models/udpipe_syntagrus.model'
-        udpipe_filename = udpipe_model_url.split('/')[-1]
-
-        if not os.path.isfile(udpipe_filename):
-            print('UDPipe model not found. Downloading...', file=sys.stderr)
-            wget.download(udpipe_model_url)
-
-        self.ud_model = Model.load(udpipe_filename)
-
-    def process_text(self, text):
-        res = self.unify_sym(text.strip())
-        output = self.process(
-            Pipeline(self.ud_model, 'tokenize', Pipeline.DEFAULT, Pipeline.DEFAULT, 'conllu'),
-            text=res)
-        return output
+        # columns: ['title', 'freq']
 
     def predict_word(self, text, prefix='а'):
         # TODO: ADD TEXT LEMMATIZATION
@@ -230,7 +245,9 @@ class KontaktModel:
                            'POS': prefix_titles['POS'],
                            'stats': stats})
         return df[df['stats'] == df['stats'].max()]['title'].values[0]
-        # print(df.idxmax())
+
+        # Previous model takes 100 similar words and try to select word with correct prefix
+        # Obviously, much worse solution
         # top_100 = self.model.most_similar(positive=text.split(' '), topn = 100)
         # top_100 = list(filter(lambda x: x[0].startswith(prefix), top_100))
         # top_100 = list(filter(
@@ -239,23 +256,17 @@ class KontaktModel:
         # return top_100
 
     def get_random_word(self):
-        t = self.titles
-        return t[t.POS == 'noun'][t.title.str.islower()].sample(1)['title'].values[0]
-       # return self.titles[self.titles.POS == 'noun']['titles'].sample(1).value[0]
+        noun_titles = self.titles[self.titles.POS == 'noun']
+        lower_nouns = noun_titles[noun_titles.title.str.islower()]
+        return lower_nouns.sample(1)['title'].values[0]
+
+    def filter_tites_by_freq(self):
+        nouns = self.titles[self.titles.POS == 'noun']['title']
+        is_common_word = lambda x: self.word_freq[self.word_freq['title'] == x].freq.size != 0
+        return nouns[is_common_word(nouns['title'])]
 
     def close(self):
         del self.model
 
     def _get_titles(self):
         return self.titles
-
-
-# kek = KontaktModel()
-# print(kek.wiki_data.head())
-# data = kek.wiki_data['title'][kek.wiki_data['title'].startswith('апе') == True]
-# print(data.head())
-# while 1:
-#    msg = input('type msg\n')
-#    prefix = input('type prefix\n')
-#    print(kek.predict_word(msg, prefix=prefix))
-# kek.close()
