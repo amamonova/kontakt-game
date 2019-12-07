@@ -5,7 +5,8 @@ import os
 import sys
 import wget
 from ufal.udpipe import Model, Pipeline
-
+import pandas as pd
+import numpy as np
 
 class KontaktModel:
     def num_replace(self, word):
@@ -180,11 +181,25 @@ class KontaktModel:
             tagged_propn = [word.split('_')[0] for word in tagged_propn]
         return tagged_propn
 
+    def process_wiki_data(self):
+        def get_only_meanings(list_means_exmpls):
+            return [mean[0] for mean in list_means_exmpls if len(mean[0])]
+        self.wiki_data['mean_only'] = self.wiki_data.meanings.apply(get_only_meanings)
+        self.wiki_data = self.wiki_data[['title', 'mean_only']]
+        lst_col = 'mean_only'
+        repeats = np.repeat(self.wiki_data['title'].values, self.wiki_data[lst_col].str.len())
+        concats = [x for inner in self.wiki_data[lst_col] for x in inner]
+        self.wiki_data = pd.DataFrame({'title': repeats, 'meaning': concats})
+
     def __init__(self):
         standard_library.install_aliases()
+        self.wiki_data = pd.read_json('wiktionary_data0.json')
+        #self.process_wiki_data()
+        self.titles = self.wiki_data[['title', 'POS']]
 
         self.model = gensim.models.KeyedVectors.load('araneum_none_fasttextcbow_300_5_2018.model')
-       # URL of the UDPipe model
+
+        # URL of the UDPipe model
         udpipe_model_url = 'https://rusvectores.org/static/models/udpipe_syntagrus.model'
         udpipe_filename = udpipe_model_url.split('/')[-1]
 
@@ -202,18 +217,32 @@ class KontaktModel:
         return output
 
     def predict_word(self, text, prefix = 'а'):
-        top_100 = self.model.most_similar(positive=text.split(' '), topn = 100)
-        top_100 = list(filter(lambda x: x[0].startswith(prefix), top_100))
-        top_100 = list(filter(
-            lambda x: re.findall('_NOUN', self.process_text(x[0])[0]) != [],
-                              top_100))
-        return top_100
+        words = text.split(' ')
+        prefix_titles = self.titles[self.titles['title'].str.startswith(prefix)]
+        prefix_titles = prefix_titles[prefix_titles.POS == 'noun']
+        stats = prefix_titles['title'].map(lambda x: self.model.n_similarity([x], words))
+        df = pd.DataFrame({'title': prefix_titles['title'],
+                           'POS': prefix_titles['POS'],
+                            'stats': stats})
+        return df[df['stats'] == df['stats'].max()]['title'].values[0]
+        #print(df.idxmax())
+       # top_100 = self.model.most_similar(positive=text.split(' '), topn = 100)i
+       # top_100 = list(filter(lambda x: x[0].startswith(prefix), top_100))
+       # top_100 = list(filter(
+       #     lambda x: re.findall('_NOUN', self.process_text(x[0])[0]) != [],
+       #                       top_100))
+       # return top_100
+
+
 
     def close(self):
         del self.model
 
 
 #kek = KontaktModel()
+#print(kek.wiki_data.head())
+#data = kek.wiki_data['title'][kek.wiki_data['title'].startswith('апе') == True]
+#print(data.head())
 #while 1:
 #    msg = input('type msg\n')
 #    prefix = input('type prefix\n')

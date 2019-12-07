@@ -83,7 +83,7 @@ class Bot:
         """
         ML calculate word from description
         """
-        logger.info(f"Get descr from user: {description}", None)
+        logger.info(f"Get descr from user: {description}, to prefifx {self.prefix[user]}", None)
         m_answer = self.model.predict_word(description, self.prefix[user])
         if not m_answer:
             return 'У меня нет ответа!'
