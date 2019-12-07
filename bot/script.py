@@ -7,7 +7,7 @@ import wget
 from ufal.udpipe import Model, Pipeline
 import pandas as pd
 import numpy as np
-
+import random
 
 class KontaktModel:
     def num_replace(self, word):
@@ -239,10 +239,16 @@ class KontaktModel:
         # return top_100
 
     def get_random_word(self):
-        return self.titles[self.titles.POS == 'noun']['titles'].sample(1).value[0]
+        t = self.titles
+        return t[t.POS == 'noun'][t.title.str.islower()].sample(1)['title'].values[0]
+       # return self.titles[self.titles.POS == 'noun']['titles'].sample(1).value[0]
 
     def close(self):
         del self.model
+
+    def _get_titles(self):
+        return self.titles
+
 
 # kek = KontaktModel()
 # print(kek.wiki_data.head())
