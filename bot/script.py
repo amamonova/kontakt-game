@@ -222,27 +222,25 @@ class KontaktModel:
     def __init__(self):
         standard_library.install_aliases()
         self.wiki_data = pd.read_json('wiktionary_data0.json')
+
         # self.process_wiki_data()
         self.titles = self.wiki_data[['title', 'POS']]
 
-        self.word_freq = pd.read_csv('word_freq.csv')
-
-        self.nouns = self.filter_tites_by_freq()
+        # colujmns: title
+        self.nouns = pd.read_csv('wide_wikt.csv')
+        self.local_nouns = None # TODO: Add locality
 
         self.model = gensim.models.KeyedVectors.load('araneum_none_fasttextcbow_300_5_2018.model')
-
-        # columns: ['title', 'freq']
 
     def predict_word(self, text, prefix='а'):
         # TODO: ADD TEXT LEMMATIZATION
         words = text.split(' ')
-        prefix_titles = self.titles[self.titles['title'].str.startswith(prefix)]
+        prefix_titles = self.nouns[self.nouns['title'].str.startswith(prefix)]
         if prefix_titles.empty:
             return ""
-        prefix_titles = prefix_titles[prefix_titles.POS == 'noun']
+        # prefix_titles = prefix_titles[prefix_titles.POS == 'noun']
         stats = prefix_titles['title'].map(lambda x: self.model.n_similarity([x], words))
         df = pd.DataFrame({'title': prefix_titles['title'],
-                           'POS': prefix_titles['POS'],
                            'stats': stats})
         return df[df['stats'] == df['stats'].max()]['title'].values[0]
 
@@ -256,14 +254,7 @@ class KontaktModel:
         # return top_100
 
     def get_random_word(self):
-        noun_titles = self.titles[self.titles.POS == 'noun']
-        lower_nouns = noun_titles[noun_titles.title.str.islower()]
-        return lower_nouns.sample(1)['title'].values[0]
-
-    def filter_tites_by_freq(self):
-        nouns = self.titles[self.titles.POS == 'noun']['title']
-        is_common_word = lambda x: self.word_freq[self.word_freq['title'] == x].freq.size != 0
-        return nouns[is_common_word(nouns['title'])]
+        return self.nouns.sample(1)['title'].values[0]
 
     def close(self):
         del self.model
