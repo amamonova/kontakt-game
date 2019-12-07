@@ -3,10 +3,6 @@ import re
 import gensim as gensim
 import mwparserfromhell
 
-EMPTY = ''
-
-SPACE = ' '
-
 PHRASEME_SEP = '[*#]'
 
 RELATION_SEP = '[*#,]'
@@ -20,7 +16,7 @@ re_wiki_braces = re.compile('[{}]')
 
 
 def _clean_text_from_quotation(text):
-    return re_quotation.sub(EMPTY, text)
+    return re_quotation.sub('', text)
 
 
 # TODO: Add to utils
@@ -31,12 +27,12 @@ def chunks(l, n):
 
 def _remove_html_tags(text):
     """Remove html tags from a string"""
-    return re_html_tags.sub(EMPTY, text)
+    return re_html_tags.sub('', text)
 
 
 def _trim_string(string):
     """"Remove extra spaces, remove trailing spaces"""
-    return re.sub('\s+', SPACE, string).strip()
+    return re.sub('\s+', ' ', string).strip()
 
 
 # This function works only with russian words!
@@ -49,8 +45,8 @@ def _remove_accents(string):
 def clean_string(string,
                  min_len=2,
                  max_len=30):
-    string = re.compile("\"").sub(EMPTY, string)
-    string = re.compile("\\\\").sub(SPACE, string)  # Important for csv delimiter correctness
+    string = re.compile("\"").sub('', string)
+    string = re.compile("\\\\").sub(' ', string)  # Important for csv delimiter correctness
     string = _remove_html_tags(string)
     string = _remove_accents(string)
     string = _trim_string(string)
@@ -95,9 +91,9 @@ def clean_meanings(text):
 
                     # Remove {{выдел|word}} pattern
 
-                    example = re_template_wiki.sub(SPACE, example)
-                    example = re_wiki_separator.sub(EMPTY, example)
-                    example = re_wiki_braces.sub(EMPTY, example)
+                    example = re_template_wiki.sub(' ', example)
+                    example = re_wiki_separator.sub('', example)
+                    example = re_wiki_braces.sub('', example)
 
                     example = clean_string(example)
 
@@ -111,18 +107,16 @@ def clean_meanings(text):
 def validate_title(title):
     if re.findall(':', title):
         return False
-    return re.match(r"[а-яА-ЯёЁ\s]+", title)
+    return re.match('^[ а-яА-Я]', title)
 
 
 def validate_text(text):
-    not_redirect = re_validate_text.findall(text) == []
-    rus_page = re.findall('{{-ru-}}', text) != []
-    return not_redirect and rus_page
+    return re_validate_text.findall(text) == []
 
 
 class WiktionaryParser:
     def __init__(self):
-        self._part_of_speech = EMPTY
+        self._part_of_speech = ""
         self._relations = {
             'synonyms': [],
             'antonyms': [],
@@ -156,7 +150,7 @@ class WiktionaryParser:
                 if not self._relations[relation] and pattern.search(lower_title):
                     self._relations[relation] = clean_wikilist(text, separator=RELATION_SEP)
             if not self._phraseme and re.search('фразеологизмы', lower_title):
-                text = re.sub('частичн', EMPTY, lower_text)
+                text = re.sub('частичн', '', lower_text)
                 self._phraseme = clean_wikilist(text, separator=PHRASEME_SEP)
             if not self._part_of_speech and re.search('морфологические и синтаксические свойства', lower_title):
                 if re.search('сущ', lower_text):
@@ -175,14 +169,13 @@ class WiktionaryParser:
 
 class WikiPediaParser:
     def __init__(self):
-        self._text = EMPTY
-        self._clean_subtitle = re.compile('==[ а-яА-Я]*==')  # Remove == SubTitle ==
-        self._clean_wikitags = re.compile('Категория:')
+        self._text = ''
 
     def parse(self, text):
         text = mwparserfromhell.parse(text).strip_code()  # Remove WikiCode {{}}, [[]]
-        text = self._clean_subtitle.sub(SPACE, text)
-        text = self._clean_wikitags.sub(EMPTY, text)
+        clean = re.compile('==[ а-яА-Я]*==')  # Remove == SubTitle ==
+        text = re.sub(clean, ' ', text)
+        text = re.sub('Категория:', '', text)  # Remove wiki additional tags
         text = clean_string(text)
         self._text = text
 
@@ -192,21 +185,20 @@ class WikiPediaParser:
 
 class WikiCodeParser:
     def __init__(self, is_wikipedia):
-        self._title = EMPTY
-        self._text = EMPTY
+        self._title = ""
+        self._text = ""
         self._is_wiki = is_wikipedia
         self._page_data = {}
 
     def clear(self):
-        self._title = EMPTY
-        self._text = EMPTY
+        self._title = ""
+        self._text = ""
         self._page_data = {}
 
     def feed(self, title, text):
-        self.clear()
+        self._title = title
         if not validate_title(title) or not validate_text(text):
             return
-        self._title = title
         self._text = text
         if self._is_wiki:
             wiki_pedia_parser = WikiPediaParser()
@@ -219,5 +211,5 @@ class WikiCodeParser:
 
     def get_data(self):
         if not self._page_data:
-            return EMPTY, {}
+            return '', {}
         return self._title, self._page_data

@@ -3,12 +3,10 @@ import os
 import requests
 import subprocess
 import re
-import tensorflow
 
 from bs4 import BeautifulSoup
 from keras.utils import get_file
 from multiprocessing import Pool
-
 
 import wiki_xml_handler
 import wiki_code_parser
@@ -60,9 +58,10 @@ def download_files(files, target_dir, url):
     data_paths = []
     for file in files:
         path = target_dir + file
-        data_path = get_file(file, url + file) if not os.path.exists(path) else path
-        data_paths.append(path)
-    print('All files downloaded')
+        if not os.path.exists(path):
+            data_paths.append(get_file(file, url + file))  # TODO: Add Exceptions
+        else:
+            data_paths.append(path)
     return data_paths
 
 
@@ -74,54 +73,62 @@ def parse_dumped_file(input_file, output_file, is_wikipedia):
     wiki_parser = wiki_code_parser.WikiCodeParser(is_wikipedia)
     # bzcat = console utility, read .bz compressed file line by line
     count = 0
-    for i, line in enumerate(subprocess.Popen(['bzcat'],
-                                              stdin=open(input_file),
-                                              stdout=subprocess.PIPE).stdout):
-        # Parse XML file line by line, return data to handler data[0] - page title, data[1] - page data
-        xml_parser.feed(bytes_to_unicode(line))
+    try:
+        for i, line in enumerate(subprocess.Popen(['bzcat'],
+                                                  stdin=open(input_file),
+                                                  stdout=subprocess.PIPE).stdout):
+            # Parse XML file line by line, return data to handler data[0] - page title, data[1] - page data
+            xml_parser.feed(bytes_to_unicode(line))
 
-        # If handler gets signal, that xml_parser read new page:
-        if handler.new_page:
-            count += 1
-            if count % 1000 == 0:
-                print(f'{count // 1000} th pages processed')
-            # 1) Get this data
-            data = handler.read_page()
-            try:
-                # 2) Load it to parser of wiki code
-                wiki_parser.feed(data[0], data[1])
-            except IndexError:
-                continue
-            # 3) Get data from wiki code parser
-            data = wiki_parser.get_data()
-            wiki_parser.clear()
-            # 4) Write it to csv file
-            writer.write(data, is_wikipedia)
+            # If handler gets signal, that xml_parser read new page:
+            if handler.new_page:
+                # 1) Get this data
+                count += 1
+                if (count % 10000 == 0):
+                    print(f'{count // 10000} * 10^4 read')
+                data = handler.read_page()
+                try:
+                    # 2) Load it to parser of wiki code
+                    wiki_parser.feed(data[0], data[1])
+                except IndexError:
+                    continue
+                # 3) Get data from wiki code parser
+                data = wiki_parser.get_data()
+                wiki_parser.clear()
+                # 4) Write it to csv file
+                writer.feed(data, is_wikipedia)
+                if len(writer._data_dict) > 25:
+                    break
+    finally:
+        if not is_wikipedia:
+            writer.write()
+
+
+def kek():
+    print("KEEEEEEEEEEEEK")
 
 
 if __name__ == '__main__':
     print("Do you want to download wikipedia-(1) or wiktionaty-(2)? (1/2)")
-    state = int(input())
-    WIKI = 1
+    x = int(input())
 
-    url_tail = 'ruwiki' if state == WIKI else 'ruwiktionary'
-    base_url = f'https://dumps.wikimedia.org/{url_tail}/'
-    download_full = state != WIKI
-    is_wiki = state == WIKI
-    file_csv_name = 'wikipedia_data' if state == WIKI else 'wiktionary_data'
+    base_url = 'https://dumps.wikimedia.org/ruwiki/' if x == 1 else 'https://dumps.wikimedia.org/ruwiktionary/'
+    download_full = x != 1
+    is_wiki = x == 1
+    file_name = 'wikipedia_data' if x == 1 else 'test_dataset'
+    file_extension = '.csv' if x == 1 else '.json'
 
     version = '20191001/'
-    # recommended keras path: '/home/sp/.keras/datasets/'
+    # recommended keras path: '/home/<username>/.keras/datasets/'
     # WARNING: LINUX OS PATH
     keras_home = input("Input directory path, where you want to store dumped wiki-files\n")
     file_urls = get_file_urls(base_url, version, download_full=download_full)
     file_paths = download_files(file_urls, keras_home, base_url + version)
     # Creating 4 processes, If you have other amount of CPUCores, you can change this
     pool = Pool(processes=4)
-    task_args = [(file, file_csv_name + str(i) + '.csv', is_wiki) for i, file in enumerate(file_paths)]
+    task_args = [(file, file_name + str(i) + file_extension, is_wiki) for i, file in enumerate(file_paths)]
     # Every process will run parse_dumped_file function
     results = pool.starmap(parse_dumped_file, task_args)
 
     pool.close()
     pool.join()
-#{{-ru-}}
