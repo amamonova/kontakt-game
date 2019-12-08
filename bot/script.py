@@ -9,18 +9,17 @@ import pandas as pd
 import numpy as np
 import random
 
+
 class KontaktModel:
     def __init__(self):
         standard_library.install_aliases()
-
         # colujmns: title
         self.nouns = pd.read_csv('wide_wikt.csv')
-        self.local_nouns = None # TODO: Add locality
-
+        self.local_nouns = None  # TODO: Add locality
         self.model = gensim.models.KeyedVectors.load('araneum_none_fasttextcbow_300_5_2018.model')
 
     def predict_word(self, text, prefix='а'):
-       # TODO: ADD TEXT LEMMATIZATION
+        # TODO: ADD TEXT LEMMATIZATION
         words = text.split(' ')
         prefix_titles = self.nouns[self.nouns['title'].str.startswith(prefix)]
 
@@ -33,12 +32,8 @@ class KontaktModel:
 
         return df[df['stats'] == df['stats'].max()]['title'].values[0]
 
-
     def get_random_word(self):
         return self.nouns.sample(1)['title'].values[0]
 
     def close(self):
         del self.model
-
-    def _get_titles(self):
-        return self.titles

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import csv
 import os
 import re
 
@@ -61,11 +62,16 @@ class Bot:
         }
         self.source_word = {}
         self.prefix = {}
-        self.game_started = False
-        self.win_previous = False
         self.input_expected = {}
         self.answer = ""
         self.model = KontaktModel()
+        self.guessing = {}
+
+    def log_database(self, bot_word, user_name, prefix, user_desc, bot_ans):
+        with open('database.csv', 'a') as csv_file:
+            writer = csv.writer(csv_file)
+            writer.writerow(
+                [user_name, bot_word, prefix, user_desc, bot_ans])
 
     def close(self):
         self.model.close()
@@ -91,7 +97,10 @@ class Bot:
         ML calculate word from description
         """
         logger.info(f"Get descr from user: {description}, to prefifx {self.prefix[user]}")
-        return self.model.predict_word(description, self.prefix[user])
+        answer = self.model.predict_word(description, self.prefix[user])
+        self.log_database(f'{user.first_name} {user.last_name}',
+                          self.source_word[user], self.prefix[user], description, answer)
+        return answer
 
     def start_command(self, update, context):
         GREETINGS_TEXT = """Привет! Я бот из CSC. Давай сыграем в игру контакт! (/play чтобы начать)"""
@@ -116,6 +125,10 @@ class Bot:
                - A \\= B, тогда игра возвращается на шаг (3)
            (7) Если компьютер не справился, т.е вывел слово отличное от B, игра переходит на шаг (2)
            (8) Игра заканчивается, если слово A раскрыто или угадано
+           
+           Особенности загаданных слов:
+           Компьютер загадывает исключительно русские нарицательные существительные
+           Пользователь должен загадывать исключительно русские нарицательные существительные
            """
         update.message.reply_text(RULES)
 
@@ -134,9 +147,9 @@ class Bot:
 
     def play(self, update, context):
         """Send message on `/play`."""
-
         # Get user that sent /play and log his name
         user = update.effective_user
+        self.guessing[user] = False
         logger.info("User %s started the conversation.", user.first_name)
 
         # Build InlineKeyboard where each button has a displayed text
@@ -171,6 +184,16 @@ class Bot:
     def user_word(self, update, context):
         description = update.message.text
         user = update.effective_user
+        if self.guessing[user]:
+            self.guessing[user] = False
+            if description == self.source_word[user]:
+                self.answer = self.source_word[user]
+                self.correct_answer(update, context)
+                return ConversationHandler.END
+            else:
+                update.message.reply_text("Нет, это не мое слово.")
+                self.correct_answer(update, context)
+                return PLAY
         self.answer = self.calculate_answer(description, user)
         if self.answer == "":
             update.message.reply_text("У меня нет ответа(")
@@ -202,31 +225,6 @@ class Bot:
                     if word in self.tag_to_list[tag]:
                         self.tag_to_func[tag](update, context)
                         return
-            """
-            LONG PROCESSED PART, DEPRICATED
-            words = self.tprocess.process_text(msg)
-            words = list(filter(lambda x: (re.findall(r'_VERB', x) != []) or
-                                          (re.findall(r'_NOUN', x) != []),
-                                words))
-            words = [re.sub(r'_.*$', '', x) for x in words]
-            logger.info(f"Given msg: {msg}")
-            logger.info(words)
-
-            processed_stats = {k: 0 for k in self.command_tags}
-            for tag, tag_words in self.tag_to_list.items():
-                cartesian = itertools.product(tag_words, words)
-                processed_stats[tag] = max(list(map(lambda x: self.api_similarity(x[0], x[1]), cartesian)))
-            logger.info(processed_stats)
-            max_tag = ""
-            max_val = -1
-            for k, v in processed_stats.items():
-                if max_val < float(v):
-                    max_val = float(v)
-                    max_tag = k
-            if max_val > 0.6:
-                self.tag_to_func[max_tag](update, context)
-                return
-            """
 
     def wrong_answer(self, update, context):
         query = update.callback_query
@@ -241,14 +239,43 @@ class Bot:
                      "Вы победили!"
             )
             return ConversationHandler.END
+        bot_text = "Эх.. Раскрываю еще одну букву\n" + \
+                   f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n' \
+                   + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его"
+        keyboard = [
+            [InlineKeyboardButton("Угадать слово", callback_data='GUESS'),
+             InlineKeyboardButton("Сдаться", callback_data='GIVE_UP')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        update.message.reply_text(
+            bot_text,
+            reply_markup=reply_markup
+        )
+        self.input_expected[user] = True
+        return PLAY
+
+    def giveup(self, update, context):
+        query = update.callback_query
+        bot = context.bot
+        user = update.effective_user
         bot.edit_message_text(
             chat_id=query.message.chat_id,
             message_id=query.message.message_id,
-            text="Эх.. Раскрываю еще одну букву\n" +
-                 f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n'
-                 + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его"
+            text=f"Мое слово было {self.source_word[user]}. Я победил!"
         )
-        self.input_expected[user] = True
+        return ConversationHandler.END
+
+    def user_guess(self, update, context):
+        query = update.callback_query
+        bot = context.bot
+        user = update.effective_user
+        bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text=f"Хотите угадать мое слово? Введите догадку."
+        )
+        self.guessing[user] = True
+
         return PLAY
 
     def correct_answer(self, update, context):
@@ -291,23 +318,11 @@ class Bot:
         dp.add_handler(CallbackQueryHandler(self.play_decline, pattern='^' + 'PLAY:N' + '$'))
         dp.add_handler(CallbackQueryHandler(self.wrong_answer, pattern='^' + 'ANSWER:N' + '$'))
         dp.add_handler(CallbackQueryHandler(self.correct_answer, pattern='^' + 'ANSWER:Y' + '$'))
+        dp.add_handler(CallbackQueryHandler(self.giveup, pattern='^' + 'GIVE_UP' + '$'))
+        dp.add_handler(CallbackQueryHandler(self.user_guess, pattern='^' + 'GUESS' + '$'))
         dp.add_handler(MessageHandler(Filters.text, self.handle_message))
         dp.add_handler(CommandHandler('play', self.play))
         dp.add_handler(CommandHandler('cancel', self.cancel_command))
-
-        # conv_handler = ConversationHandler(
-        #     entry_points=[CommandHandler('play', self.play)],
-        #     states={
-        #         PLAY: [
-        #             MessageHandler(Filters.text, self.user_word),
-        #             CallbackQueryHandler(self.init_play, pattern='^' + 'PLAY:Y' + '$'),
-        #             CallbackQueryHandler(self.play_decline, pattern='^' + 'PLAY:N' + '$'),
-        #             CallbackQueryHandler(self.correct_answer, pattern='^' + 'ANSWER:Y' + '$'),
-        #             CallbackQueryHandler(self.wrong_answer, pattern='^' + 'ANSWER:N' + '$')]
-        #     },
-        #     fallbacks=[CommandHandler('cancel', self.cancel_command)]
-        # )
-        # dp.add_handler(conv_handler)
 
         dp.add_handler(CommandHandler('help', self.help_command))
         dp.add_handler(CommandHandler('rules', self.rules_command))
