@@ -125,7 +125,7 @@ class Bot:
                - A \\= B, тогда игра возвращается на шаг (3)
            (7) Если компьютер не справился, т.е вывел слово отличное от B, игра переходит на шаг (2)
            (8) Игра заканчивается, если слово A раскрыто или угадано
-           
+
            Особенности загаданных слов:
            Компьютер загадывает исключительно русские нарицательные существительные
            Пользователь должен загадывать исключительно русские нарицательные существительные
@@ -247,8 +247,17 @@ class Bot:
              InlineKeyboardButton("Сдаться", callback_data='GIVE_UP')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        update.message.reply_text(
-            bot_text,
+        #bot.edit_message_text(
+        #    chat_id = query.message.chat_id,
+        #    message_id = query.message.chat_id,
+        #    text=bot_text#,
+            #reply_markup=reply_markup
+        #)
+        #self.input_expected[user] = True
+        bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text=bot_text,
             reply_markup=reply_markup
         )
         self.input_expected[user] = True
