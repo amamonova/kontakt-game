@@ -98,8 +98,11 @@ class Bot:
         """
         logger.info(f"Get descr from user: {description}, to prefifx {self.prefix[user]}")
         answer = self.model.predict_word(description, self.prefix[user])
-        self.log_database(f'{user.first_name} {user.last_name}',
-                          self.source_word[user], self.prefix[user], description, answer)
+        self.log_database(user_name=f'{user.first_name} {user.last_name}',
+                          bot_word=self.source_word[user],
+                          prefix=self.prefix[user],
+                          user_desc=description,
+                          bot_ans=answer)
         return answer
 
     def start_command(self, update, context):
@@ -192,7 +195,17 @@ class Bot:
                 return ConversationHandler.END
             else:
                 update.message.reply_text("Нет, это не мое слово.")
-                self.correct_answer(update, context)
+                bot_text = f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n' \
+                           + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его"
+                keyboard = [
+                    [InlineKeyboardButton("Угадать слово", callback_data='GUESS'),
+                     InlineKeyboardButton("Сдаться", callback_data='GIVE_UP')]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                update.message.reply_text(
+                    bot_text,
+                    reply_markup=reply_markup
+                )
                 return PLAY
         self.answer = self.calculate_answer(description, user)
         if self.answer == "":
@@ -247,13 +260,6 @@ class Bot:
              InlineKeyboardButton("Сдаться", callback_data='GIVE_UP')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        #bot.edit_message_text(
-        #    chat_id = query.message.chat_id,
-        #    message_id = query.message.chat_id,
-        #    text=bot_text#,
-            #reply_markup=reply_markup
-        #)
-        #self.input_expected[user] = True
         bot.edit_message_text(
             chat_id=query.message.chat_id,
             message_id=query.message.message_id,
@@ -267,6 +273,7 @@ class Bot:
         query = update.callback_query
         bot = context.bot
         user = update.effective_user
+        self.input_expected[user] = False
         bot.edit_message_text(
             chat_id=query.message.chat_id,
             message_id=query.message.message_id,
@@ -298,12 +305,19 @@ class Bot:
                 text="Вы угадали мое слово!"
             )
             return ConversationHandler.END
+        bot_text = "Отлично! Я угадал, играем дальше\n" + \
+                 f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n' \
+                 + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его"
+        keyboard = [
+            [InlineKeyboardButton("Угадать слово", callback_data='GUESS'),
+             InlineKeyboardButton("Сдаться", callback_data='GIVE_UP')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
         bot.edit_message_text(
             chat_id=query.message.chat_id,
             message_id=query.message.message_id,
-            text="Отлично! Я угадал, играем дальше\n" +
-                 f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n'
-                 + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его"
+            text=bot_text,
+            reply_markup=reply_markup
         )
         self.input_expected[user] = True
         return PLAY
