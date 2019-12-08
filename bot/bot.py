@@ -141,11 +141,23 @@ class Bot:
 
     def init_play(self, update, context):
         query = update.callback_query
+        bot = context.bot
         user = update.effective_user
         self.computer_makes_word(user)
-        query.edit_message_text(text=f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n'
-                                     + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его")
-        self.input_expected[user] = True
+        bot_text = f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n' \
+                   + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его"
+        keyboard = [
+            [InlineKeyboardButton("Угадать слово", callback_data='GUESS'),
+             InlineKeyboardButton("Сдаться", callback_data='GIVE_UP')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text=bot_text,
+            reply_markup=reply_markup
+        )
+        self.input_expected[user] =True
         return PLAY
 
     def play(self, update, context):
@@ -190,8 +202,8 @@ class Bot:
         if self.guessing[user]:
             self.guessing[user] = False
             if description == self.source_word[user]:
-                self.answer = self.source_word[user]
-                self.correct_answer(update, context)
+                update.message.reply_text("Вы угадали мое слово!")
+                self.input_expected[user] = False
                 return ConversationHandler.END
             else:
                 update.message.reply_text("Нет, это не мое слово.")
@@ -304,6 +316,7 @@ class Bot:
                 message_id=query.message.message_id,
                 text="Вы угадали мое слово!"
             )
+            self.input_expected[user] = False
             return ConversationHandler.END
         bot_text = "Отлично! Я угадал, играем дальше\n" + \
                  f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n' \
