@@ -36,6 +36,9 @@ class KontaktModel:
     def predict_word(self, text, prefix=''):
         words = (self.preprocess_text(text)).split(' ')
         prefix_titles = self.nouns[self.nouns['title'].str.startswith(prefix)]
+        words_set = set(words)
+        prefix_titles['b'] = prefix_titles.title.apply(lambda x: x not in words_set)
+        prefix_titles = prefix_titles[prefix_titles.b == True]
 
         if prefix_titles.empty:
             return ""
