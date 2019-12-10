@@ -18,8 +18,8 @@ class KontaktModel:
     def __init__(self):
         standard_library.install_aliases()
         nltk.download('stopwords')
-        mystem = Mystem()
-        russian_stopwords = stopwords.words("russian")
+        self.mystem = Mystem()
+        self.russian_stopwords = stopwords.words("russian")
 
         # colujmns: title
         self.nouns = pd.read_csv('wide_wikt.csv')
@@ -27,8 +27,8 @@ class KontaktModel:
         self.model = gensim.models.KeyedVectors.load('araneum_none_fasttextcbow_300_5_2018.model')
 
     def preprocess_text(self, text):
-        tokens = mystem.lemmatize(text.lower())
-        tokens = [token for token in tokens if token not in russian_stopwords \
+        tokens = self.mystem.lemmatize(text.lower())
+        tokens = [token for token in tokens if token not in self.russian_stopwords \
                   and token != " " \
                   and token.strip() not in punctuation]
         return " ".join(tokens)
