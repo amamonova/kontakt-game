@@ -76,7 +76,6 @@ class Bot:
     def close(self):
         self.model.close()
 
-    # TODO:
     def computer_makes_word(self, user):
         try:
             word = self.model.get_random_word()
@@ -91,7 +90,6 @@ class Bot:
         except KeyError:
             logger.warning(f"USER NOT FOUND {user.first_name}")
 
-    # TODO:
     def calculate_answer(self, description, user):
         """
         ML calculate word from description
@@ -140,24 +138,11 @@ class Bot:
         logger.warning('Update "%s" caused error "%s"', update, context.error)
 
     def init_play(self, update, context):
-        query = update.callback_query
-        bot = context.bot
         user = update.effective_user
         self.computer_makes_word(user)
         bot_text = f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n' \
                    + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его"
-        keyboard = [
-            [InlineKeyboardButton("Угадать слово", callback_data='GUESS'),
-             InlineKeyboardButton("Сдаться", callback_data='GIVE_UP')]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        bot.edit_message_text(
-            chat_id=query.message.chat_id,
-            message_id=query.message.message_id,
-            text=bot_text,
-            reply_markup=reply_markup
-        )
-        self.input_expected[user] =True
+        self.guess_reply(update=update, context=context, bot_text=bot_text)
         return PLAY
 
     def play(self, update, context):
@@ -267,6 +252,13 @@ class Bot:
         bot_text = "Эх.. Раскрываю еще одну букву\n" + \
                    f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n' \
                    + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его"
+        self.guess_reply(update=update, context=context, bot_text=bot_text)
+        return PLAY
+
+    def guess_reply(self, update, context, bot_text):
+        query = update.callback_query
+        bot = context.bot
+        user = update.effective_user
         keyboard = [
             [InlineKeyboardButton("Угадать слово", callback_data='GUESS'),
              InlineKeyboardButton("Сдаться", callback_data='GIVE_UP')]
@@ -279,7 +271,6 @@ class Bot:
             reply_markup=reply_markup
         )
         self.input_expected[user] = True
-        return PLAY
 
     def giveup(self, update, context):
         query = update.callback_query
@@ -318,21 +309,11 @@ class Bot:
             )
             self.input_expected[user] = False
             return ConversationHandler.END
+
         bot_text = "Отлично! Я угадал, играем дальше\n" + \
-                 f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n' \
-                 + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его"
-        keyboard = [
-            [InlineKeyboardButton("Угадать слово", callback_data='GUESS'),
-             InlineKeyboardButton("Сдаться", callback_data='GIVE_UP')]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        bot.edit_message_text(
-            chat_id=query.message.chat_id,
-            message_id=query.message.message_id,
-            text=bot_text,
-            reply_markup=reply_markup
-        )
-        self.input_expected[user] = True
+                   f"Загаданной мной слово начинается на \'{self.prefix[user]}\'" + '\n' \
+                   + f"Загадайте свое слово на \'{self.prefix[user]}\' и опишите его"
+        self.guess_reply(update=update, context=context, bot_text=bot_text)
         return PLAY
 
     def cancel_command(self, update, context):
