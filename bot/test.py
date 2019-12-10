@@ -8,7 +8,7 @@ global_success = 0
 def test():
     global global_success
     sample = df.sample(1).iloc[0]
-    size = min(1, len(sample.title))
+    size = min(3, len(sample.title))
     answer = m.predict_word(sample.meaning, sample.title[:size])
     print(f'Word: {sample.title}; Answer: {answer}')
     if answer == sample.title:
@@ -18,4 +18,5 @@ def test():
 for i in range(0, 1000):
     test()
 
-print(f'Total accuracy: {global_success / 100}')
+print(f'Total accuracy: {100 * global_success / 1000}%')
+
